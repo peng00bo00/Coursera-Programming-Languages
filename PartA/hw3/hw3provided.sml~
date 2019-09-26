@@ -1,0 +1,119 @@
+(* Coursera Programming Languages, Homework 3, Provided Code *)
+
+exception NoAnswer
+
+datatype pattern = Wildcard
+		 | Variable of string
+		 | UnitP
+		 | ConstP of int
+		 | TupleP of pattern list
+		 | ConstructorP of string * pattern
+
+datatype valu = Const of int
+	      | Unit
+	      | Tuple of valu list
+	      | Constructor of string * valu
+
+fun g f1 f2 p =
+    let 
+	val r = g f1 f2 
+    in
+	case p of
+	    Wildcard          => f1 ()
+	  | Variable x        => f2 x
+	  | TupleP ps         => List.foldl (fn (p,i) => (r p) + i) 0 ps
+	  | ConstructorP(_,p) => r p
+	  | _                 => 0
+    end
+
+(* 1 *)
+val only_capitals = List.filter (fn string => Char.isUpper(String.sub(string, 0)))
+
+(* 2 *)
+val longest_string1 =
+    foldl (fn (string1, string2) => if String.size(string1) > String.size(string2) then string1 else string2) ""
+
+(* 3 *)
+val longest_string2 =
+    foldl (fn (string1, string2) => if String.size(string1) >= String.size(string2) then string1 else string2) ""
+
+(* 4 *)
+fun longest_string_helper f strings =
+    foldl (fn (string1, string2) => if f(String.size(string1), String.size(string2)) then string1 else string2) "" strings
+
+val longest_string3 = longest_string_helper (fn (x, y) => x > y)
+
+val longest_string4 = longest_string_helper (fn (x, y) => x >= y)
+
+(* 5 *)
+val longest_capitalized = longest_string1 o only_capitals
+
+(* 6 *)
+val rev_string = String.implode o rev o String.explode
+
+(* 7 *)
+fun first_answer f lst =
+    case lst of [] => raise NoAnswer
+	      | x::xs => case f(x) of SOME(v) => v
+	                            | NONE => first_answer f xs
+
+(* 8 *)
+fun all_answers f lst =
+    case lst of [] => SOME []
+	      | x::xs => case f(x) of NONE => NONE
+	                            | SOME(v) => SOME(v @ valOf(all_answers f xs))
+
+(* 9 *)
+(* 9.a *)
+val count_wildcards = g (fn p => 1) (fn string => 0)
+(* 9.b *)
+val count_wild_and_variable_lengths = g (fn p => 1) (String.size)
+(* 9.c *)
+fun count_some_var (string, p) =
+    g (fn x => 0) (fn v => if string = v then 1 else 0) p
+
+(* 10 *)
+fun check_pat p =
+    let
+	(* Extract strings from p *)
+	fun helper1 p =
+	    case p of Variable string => [string]
+		    | TupleP ps => foldl (fn (p', acc) => acc @ helper1(p')) [] ps
+		    | ConstructorP(string, p') => helper1 p'
+		    | _ => []
+	(* Return true if there are repeats *)
+	fun helper2 lst =
+	    case lst of [] => false
+		      | s::ss =>  if List.exists (fn s' => if s=s' then true else false) ss
+				  then true
+				  else helper2 ss
+	    
+    in
+	not ((helper2 o helper1) p)
+    end
+
+(* 11 *)
+fun match (v, p) =
+    case (v, p) of (_,Wildcard) => SOME []
+                 | (_,Variable s ) => SOME [(s, v)]
+                 | (Unit, UnitP) => SOME []
+                 | (Const x, ConstP y) => if x=y then SOME [] else NONE
+                 | (Tuple(vs),TupleP(ps)) => if length vs = length ps
+				             then all_answers match (ListPair.zip(vs,ps))
+				             else NONE
+                 | (Constructor(s1, v'), ConstructorP(s2, p')) => if s1=s2 then match(v', p') else NONE
+                 | _ => NONE
+
+(* 12 *)
+fun first_match v ps =
+    SOME (first_answer (fn p => match (v, p)) ps) handle NoAnswer => NONE
+	
+(**** for the challenge problem only ****)
+
+datatype typ = Anything
+	     | UnitT
+	     | IntT
+	     | TupleT of typ list
+	     | Datatype of string
+
+(**** you can put all your code here ****)
